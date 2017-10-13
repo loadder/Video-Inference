@@ -444,14 +444,16 @@ class Video(object):
 		if hasattr(self, '_lastread'):
 			del self._lastread
 
-def extract(video, length):
+def extract(video, length, filename, frame_group_len):
+	cnt = 0
 	for time_stamps, frames in video:
 		#print(time_stamps)
 		#print(len(frames))
 		for idx, frame in enumerate(frames):
 			bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-			cv2.imwrite(args.path+filename[:-(length+1)]+"/"+str(idx)+'.jpg',bgr)
-		break
+			cv2.imwrite(args.path+filename[:-(length+1)]+"/"+str(cnt*frame_group_len+1+idx)+'.jpg',bgr)
+		cnt += 1
+	return
 
 
 if  __name__ == '__main__':
@@ -462,5 +464,5 @@ if  __name__ == '__main__':
 		print(filename)
 		if filename[-length:] == suffix:
 			os.mkdir(args.path+filename[:-(length+1)])
-			video = Video(args.path+filename, frame_group_len=10, step=1)
-			extract(video, length)
+			video = Video(args.path+filename, frame_group_len=10)
+			extract(video, length, filename, 10)
