@@ -17,9 +17,12 @@ import logging
 import numpy as np
 from collections import deque
 from tqdm import tqdm
-
+import argparse
 logging.captureWarnings(True)
-
+parser = argparse.ArgumentParser()
+parser.add_argument("-s", "--suffix", help="the suffix of video")
+parser.add_argument("-p", "--path", help="path to videos")
+args = parser.parse_args()
 try:
 	from subprocess import DEVNULL  # py3k
 except ImportError:
@@ -441,12 +444,23 @@ class Video(object):
 		if hasattr(self, '_lastread'):
 			del self._lastread
 
-
-if __name__ == '__main__':
-
-	filename = "test.avi"
-	video = Video(filename, frame_group_len=10)
+def extract(video, length):
 	for time_stamps, frames in video:
-		print(time_stamps)
-		print(len(frames))
+		#print(time_stamps)
+		#print(len(frames))
+		for idx, frame in enumerate(frames):
+			bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+			cv2.imwrite(args.path+filename[:-(length+1)]+"/"+str(idx)+'.jpg',bgr)
 		break
+
+
+if  __name__ == '__main__':
+	suffix = args.suffix
+	length = len(suffix)
+	files = os.listdir(args.path)
+	for filename in files:
+		print(filename)
+		if filename[-length:] == "mp4":
+			os.mkdir(args.path+filename[:-(length+1)])
+			video = Video(args.path+filename, frame_group_len=10)
+			extract(video, length)
