@@ -4,7 +4,13 @@ from video import Video
 from utils import center_crop_images
 import skimage
 import cv2
-
+import os
+import argparse
+logging.captureWarnings(True)
+parser = argparse.ArgumentParser()
+parser.add_argument("-s", "--suffix", help="the suffix of video")
+parser.add_argument("-p", "--path", help="path to videos")
+args = parser.parse_args()
 
 class FeatureExtraction(object):
     """
@@ -66,11 +72,18 @@ class FeatureExtraction(object):
 
 
 if __name__ == "__main__":
-    filename = "test.avi"
-    video = Video(filename, frame_group_len=2)
-    features = FeatureExtraction(video, modelPrototxt='./models/SENet.prototxt', modelFile='./models/SENet.caffemodel',
-                 featureLayer='pool5/7x7_s1', gpu_id=0)
-    for fea in features():
-        print fea.shape
-        print fea
-        break
+    suffix = args.suffix
+    length = len(suffix)
+    files = os.listdir(args.path)
+    os.mkdir(args.path+'/features')
+    for filename in files:
+        print(filename)
+        if filename[-length:] == suffix:
+            video = Video(filename, frame_group_len=2)
+            features = FeatureExtraction(video, modelPrototxt='./models/SENet.prototxt', modelFile='./models/SENet.caffemodel',
+                         featureLayer='pool5/7x7_s1', gpu_id=0)
+            feature_list = []
+            for fea in features():
+                feature_list.append(np.squeeze(fea))
+            feature = np.asarray(feature_list)
+            np.save(args.path+"/features/"+filename[:-(length+1)]+'.npy', feature)
