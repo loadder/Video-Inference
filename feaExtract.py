@@ -6,7 +6,6 @@ import skimage
 import cv2
 import os
 import argparse
-logging.captureWarnings(True)
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--suffix", help="the suffix of video")
 parser.add_argument("-p", "--path", help="path to videos")
@@ -79,7 +78,7 @@ if __name__ == "__main__":
     for filename in files:
         print(filename)
         if filename[-length:] == suffix:
-            video = Video(filename, frame_group_len=2)
+            video = Video(filename, frame_group_len=1)
             features = FeatureExtraction(video, modelPrototxt='./models/SENet.prototxt', modelFile='./models/SENet.caffemodel',
                          featureLayer='pool5/7x7_s1', gpu_id=0)
             feature_list = []

@@ -462,5 +462,5 @@ if  __name__ == '__main__':
 		print(filename)
 		if filename[-length:] == suffix:
 			os.mkdir(args.path+filename[:-(length+1)])
-			video = Video(args.path+filename, frame_group_len=10)
+			video = Video(args.path+filename, frame_group_len=10, step=1)
 			extract(video, length)
