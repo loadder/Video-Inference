@@ -460,7 +460,7 @@ if  __name__ == '__main__':
 	files = os.listdir(args.path)
 	for filename in files:
 		print(filename)
-		if filename[-length:] == "mp4":
+		if filename[-length:] == suffix:
 			os.mkdir(args.path+filename[:-(length+1)])
 			video = Video(args.path+filename, frame_group_len=10)
 			extract(video, length)
