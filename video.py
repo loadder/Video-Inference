@@ -18,11 +18,6 @@ import numpy as np
 from collections import deque
 from tqdm import tqdm
 import argparse
-logging.captureWarnings(True)
-parser = argparse.ArgumentParser()
-parser.add_argument("-s", "--suffix", help="the suffix of video")
-parser.add_argument("-p", "--path", help="path to videos")
-args = parser.parse_args()
 try:
 	from subprocess import DEVNULL  # py3k
 except ImportError:
@@ -184,7 +179,7 @@ class Video(object):
 
 		proc.stdout.readline()
 		proc.terminate()
-		infos = proc.stderr.read().decode('utf8')
+		infos = proc.stderr.read().decode('utf_8')
 		del proc
 
 		if print_infos:
@@ -444,25 +439,33 @@ class Video(object):
 		if hasattr(self, '_lastread'):
 			del self._lastread
 
-def extract(video, length, filename, frame_group_len):
+def extract(video, length, filename, frame_group_len, path):
 	cnt = 0
 	for time_stamps, frames in video:
 		#print(time_stamps)
 		#print(len(frames))
 		for idx, frame in enumerate(frames):
 			bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-			cv2.imwrite(args.path+filename[:-(length+1)]+"/"+str(cnt*frame_group_len+1+idx)+'.jpg',bgr)
+			cv2.imwrite(path+filename[:-(length+1)]+"/"+str(cnt*frame_group_len+1+idx)+'.jpg',bgr)
 		cnt += 1
 	return
 
 
 if  __name__ == '__main__':
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-s", "--suffix", help="the suffix of video")
+	parser.add_argument("-p", "--path", help="path to videos")
+	args = parser.parse_args()
 	suffix = args.suffix
 	length = len(suffix)
 	files = os.listdir(args.path)
 	for filename in files:
+                print("filename")
 		print(filename)
 		if filename[-length:] == suffix:
-			os.mkdir(args.path+filename[:-(length+1)])
-			video = Video(args.path+filename, frame_group_len=10)
-			extract(video, length, filename, 10)
+			try:
+				video = Video(args.path+filename, frame_group_len=1, step=1)
+				os.mkdir(args.path+filename[:-(length+1)])
+				extract(video, length, filename, 1, args.path)
+			except UnicodeDecodeError:
+				continue

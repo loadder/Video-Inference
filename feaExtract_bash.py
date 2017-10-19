@@ -6,6 +6,10 @@ import skimage
 import cv2
 import os
 import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("-s", "--suffix", help="the suffix of video")
+parser.add_argument("-p", "--path", help="path to videos")
+args = parser.parse_args()
 
 class FeatureExtraction(object):
     """
@@ -67,20 +71,21 @@ class FeatureExtraction(object):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--path", help="path to videos")
-    parser.add_argument("-f", "--filename", help="filename")
-    parser.add_argument("-d", "--device", help="device id")
-    args = parser.parse_args()
-    length = 3
-    filename = args.filename
-    print(filename)
-    if not (os.path.isfile(args.path+"/features/"+filename[:-(length+1)]+'.npy')):
-        video = Video(args.path+filename, frame_group_len=1, step=1)
-        features = FeatureExtraction(video, modelPrototxt='./models/SENet.prototxt', modelFile='./models/SENet.caffemodel',
-                      featureLayer='pool5/7x7_s1', gpu_id=int(args.device))
-        feature_list = []
-        for fea in features():
-            feature_list.append(np.squeeze(fea))
-        feature = np.asarray(feature_list)
-        np.save(args.path+"/features/"+filename[:-(length+1)]+'.npy', feature)
+    suffix = args.suffix
+    length = len(suffix)
+    files = os.listdir(args.path)
+    os.mkdir(args.path+'/features')
+    cnt = 0
+    for filename in files:
+        print(filename)
+        if filename[-length:] == suffix:
+            video = Video(args.path+filename, frame_group_len=1, step=1)
+            features = FeatureExtraction(video, modelPrototxt='./models/SENet.prototxt', modelFile='./models/SENet.caffemodel',
+                         featureLayer='pool5/7x7_s1', gpu_id=0)
+            feature_list = []
+            for fea in features():
+                feature_list.append(np.squeeze(fea))
+		cnt += 1
+            feature = np.asarray(feature_list)
+            np.save(args.path+"/features/"+filename[:-(length+1)]+'.npy', feature)
+    print(cnt)
