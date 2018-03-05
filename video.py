@@ -445,8 +445,9 @@ def extract(video, length, filename, frame_group_len, path):
 		#print(time_stamps)
 		#print(len(frames))
 		for idx, frame in enumerate(frames):
-			bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-			cv2.imwrite(path+filename[:-(length+1)]+"/"+str(cnt*frame_group_len+1+idx)+'.jpg',bgr)
+                        bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+			bgr = cv2.resize(bgr, (256, 256), interpolation=cv2.INTER_LINEAR)
+			cv2.imwrite(path+filename[:-(length+1)]+"/"+str(cnt*frame_group_len+1+idx)+'.png',bgr)
 		cnt += 1
 	return
 
@@ -455,17 +456,20 @@ if  __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-s", "--suffix", help="the suffix of video")
 	parser.add_argument("-p", "--path", help="path to videos")
+        parser.add_argument("-a", "--auto", help="path to save")
 	args = parser.parse_args()
 	suffix = args.suffix
 	length = len(suffix)
 	files = os.listdir(args.path)
 	for filename in files:
-                print("filename")
 		print(filename)
 		if filename[-length:] == suffix:
 			try:
-				video = Video(args.path+filename, frame_group_len=1, step=1)
-				os.mkdir(args.path+filename[:-(length+1)])
-				extract(video, length, filename, 1, args.path)
+                                if os.path.isdir(args.auto+filename[:-(length+1)]):
+					continue
+				video = Video(args.path+filename, frame_group_len=1, step=1/25.0)
+				os.mkdir(args.auto+filename[:-(length+1)])
+				extract(video, length, filename, 1, args.auto)
 			except UnicodeDecodeError:
 				continue
+

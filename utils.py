@@ -22,10 +22,10 @@ def center_crop_images(images, crop_dims):
          crop_dims / 2.0
     ])
     crops_ix = crops_ix[0]
-
+    crops_ix = crops_ix.astype(int)
     # Extract crops
     crop_images = deque([], len(images))
-
+    
     for im in images:
         crop_image = im[crops_ix[0]:crops_ix[2], crops_ix[1]:crops_ix[3], :]
         crop_images.append(crop_image)
