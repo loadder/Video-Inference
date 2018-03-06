@@ -1,87 +1,46 @@
-import numpy as np
-import caffe
-from video import Video
-from utils import center_crop_images
-import skimage
-import cv2
-import os
+import torch
+from torch.autograd import Variable
 import argparse
+import numpy as np
+import torch.nn.functional as F
+import torch.nn as nn
+from model.I3D_Pytorch import I3D
+import os
 
-class FeatureExtraction(object):
-    """
-    extract features for video frames.
-    
-    Parameters
-    -----------------
-    video: Video
-    modelPrototxt: model architecture file
-    modelFile: model snapshot
-    featureLayer: which layer to be extracted as feature
-    gpu_id: which gpu to use
-    """
+_CHECKPOINT_PATHS = {
+    'rgb': 'data/pytorch_checkpoints/rgb_scratch.pkl',
+    'flow': 'data/pytorch_checkpoints/flow_scratch.pkl',
+    'rgb_imagenet': 'data/pytorch_checkpoints/rgb_imagenet.pkl',
+    'flow_imagenet': 'data/pytorch_checkpoints/flow_imagenet.pkl',
+}
+from dataloader import videoDataset, transform
+import torch
+import torch.utils.data as data
 
-    def __init__(self, video, modelPrototxt='./models/SENet.prototxt', modelFile='./models/SENet.caffemodel',
-                 featureLayer='pool5/7x7_s1', gpu_id=0):
-        self.video = video
+dataset = videoDataset(root="/home/xuchengming/BingZhang/figure_skating/frames",
+                   label="./remain.txt", transform=transform)
+videoLoader = torch.utils.data.DataLoader(dataset,
+                                   batch_size=1, shuffle=False, num_workers=2)
 
-        caffe.set_mode_gpu()
-        caffe.set_device(gpu_id)
-
-        self.net = caffe.Net(modelPrototxt, modelFile, caffe.TEST)
-        data_shape = self.net.blobs['data'].data.shape
-        self.height = data_shape[2]
-        self.width = data_shape[3]
-        self.batchsize = data_shape[0]
-        if self.video.frame_group_len != self.batchsize:
-            raise IOError(
-					("FeatureExtraction error: video frame group len (%d) is not equal to prototxt batchsize (%d)"
-					 % (self.video.frame_group_len, self.batchsize)))
-        self.featureLayer = featureLayer
-        featureDim = self.net.blobs[featureLayer].data.shape
-        print "featureDim:", featureDim
-
-        transformer = caffe.io.Transformer({'data': data_shape})
-        transformer.set_transpose('data', (2, 0, 1))
-        transformer.set_mean('data', np.array([103.939, 116.779, 123.68]))  # mean pixel
-        transformer.set_raw_scale('data', 255)
-        transformer.set_channel_swap('data', (2, 1, 0))
-        self.transformer = transformer
-
-    def __call__(self):
-        for timestamps, frames in self.video: # frames are rgb channel-ordered
-            center_frames = center_crop_images(frames,(self.height, self.width))
-            #### TO DO: add other crop functions, corner crop, flip, etc.
-            im_group = np.empty((self.batchsize,3,self.height,self.width), dtype=np.float32)
-
-            for ix, img in enumerate(center_frames):
-                #### TO DO: preprocess multi images at once.
-                img = skimage.img_as_float(img).astype(np.float32)
-                img_preprocess = self.transformer.preprocess('data', img)
-                im_group[ix] = img_preprocess
-
-            self.net.blobs['data'].data[...] = im_group
-            self.net.forward()
-            features = self.net.blobs[self.featureLayer].data[...].reshape(self.batchsize, -1)
-
-            yield features
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--path", help="path to videos")
-    parser.add_argument("-f", "--filename", help="filename")
-    parser.add_argument("-d", "--device", help="device id")
-    parser.add_argument("-s", "--save", help="save")
-    args = parser.parse_args()
-    length = 3
-    filename = args.filename
-    print(filename)
-    if not (os.path.isfile(args.save+filename[:-(length+1)]+'.binary')):
-        video = Video(args.path+filename, frame_group_len=1, step=1/25.0)
-        features = FeatureExtraction(video, modelPrototxt='./models/SENet.prototxt', modelFile='./models/SENet.caffemodel',
-                      featureLayer='pool5/7x7_s1', gpu_id=int(args.device))
-        feature_list = []
-        for fea in features():
-            feature_list.append(np.squeeze(np.copy(fea)))
-        feature = np.asarray(feature_list)
-        feature.tofile(args.save+filename[:-(length+1)]+'.binary')
+def load_my_state_dict(model, state_dict):
+    own_state = model.state_dict()
+    for idx, name in enumerate(own_state.keys()):
+        param = state_dict[state_dict.keys()[idx]]
+        own_state[name].copy_(param)
+rgb_i3d = I3D(input_channel=3)
+state_dict = torch.load(_CHECKPOINT_PATHS['rgb_imagenet'])
+load_my_state_dict(rgb_i3d, state_dict)
+rgb_i3d.eval()
+for i, (videos, ids) in enumerate(videoLoader):
+    print(ids)
+    if os.path.isfile("/home/xuchengming/BingZhang/features/" + ids[0] + '.binary'):
+        continue
+    features = []
+    if torch.cuda.is_available():
+        videos = Variable(videos).cuda(0)
+    for j in range(videos.shape[2] // 40):
+        part_videos = videos[:, :, j*40:min((j+1)*40, videos.shape[2]), :, :]
+        part_features = rgb_i3d(part_videos).data.cpu().numpy()
+        features.append(part_features)
+    fea = np.mean(np.concatenate(features, axis=2), axis=2)
+    fea.tofile("/home/xuchengming/BingZhang/features/" + ids[0] + '.binary')
